@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="description" content="Font Harmony Checker Add-on for Adobe Express" />
+  <meta name="keywords" content="Adobe, Express, Add-On, Font Harmony" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Font Harmony Checker</title>
+  <style>
+    .container {
+      margin: 24px;
+      display: flex;
+      flex-direction: column;
+      font-family: sans-serif;
+      max-width: 400px;
+    }
+    button {
+      background-color: rgb(82, 88, 228);
+      border-color: rgb(82, 88, 228);
+      border-radius: 16px;
+      border-style: solid;
+      color: white;
+      font-family: sans-serif;
+      height: 32px;
+      margin-bottom: 12px;
+    }
+    button:disabled {
+      background-color: rgb(177, 177, 177);
+      border-color: rgb(177, 177, 177);
+      cursor: default;
+    }
+    button:not([disabled]):hover {
+      background-color: rgb(64, 70, 202);
+      cursor: pointer;
+    }
+    select {
+      height: 32px;
+      margin-bottom: 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      padding: 4px 8px;
+    }
+    #result {
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button id="checkFonts" disabled>Check Font Harmony</button>
+
+    <label for="recommendedPairs">Try Recommended Font Pair:</label>
+    <select id="recommendedPairs">
+      <option value="">-- Select a Font Pair --</option>
+    </select>
+
+    <div id="result">
+      Fonts Detected:
+
+      Score: N/A
+
+      Feedback: No text selected. Please select at least one text element.
+    </div>
+  </div>
+
+  <script type="module">
+    import addOnUISdk from "https://new.express.adobe.com/static/add-on-sdk/sdk.js";
+
+    addOnUISdk.ready.then(async () => {
+      console.log("✅ addOnUISdk ready.");
+
+      const { runtime } = addOnUISdk.instance;
+      const sandboxProxy = await runtime.apiProxy("documentSandbox");
+
+      const checkFontsButton = document.getElementById("checkFonts");
+      const resultBox = document.getElementById("result");
+      const fontSelect = document.getElementById("recommendedPairs");
+
+      // Helper scoring logic (same as in sandbox)
+      function scoreFonts(font1, font2) {
+        if (font1 === font2) return 95;
+        const incompatible = [
+          ["Comic Sans", "Roboto"],
+          ["Lobster", "Helvetica"],
+        ];
+        if (
+          incompatible.some(
+            (pair) =>
+              (pair.includes(font1) && pair.includes(font2))
+          )
+        )
+          return 40;
+        return 75;
+      }
+
+      function getScoreMessage(score) {
+        if (score >= 90) return "Excellent font pairing!";
+        if (score >= 70) return "Good pairing, visually consistent.";
+        if (score >= 50) return "Acceptable but could be better.";
+        return "Fonts may clash. Consider alternatives.";
+      }
+
+      // Enable the Check Font Harmony button only if the API exists
+      if (sandboxProxy.checkFontHarmony) {
+        checkFontsButton.disabled = false;
+      } else {
+        resultBox.textContent =
+          "The checkFontHarmony API is not supported in this environment.";
+        checkFontsButton.disabled = true;
+      }
+
+      // Click handler for checking font harmony in selected text
+      checkFontsButton.addEventListener("click", async () => {
+        try {
+          if (!sandboxProxy.checkFontHarmony) {
+            resultBox.textContent =
+              "checkFontHarmony API not supported.";
+            return;
+          }
+          const result = await sandboxProxy.checkFontHarmony();
+          if (!result || !result.fonts || result.fonts.length === 0) {
+            resultBox.textContent =
+              "No font data available. Please select at least one text element.";
+            return;
+          }
+          resultBox.innerHTML = `
+            <p><strong>Fonts Detected:</strong> ${result.fonts.join(", ")}</p>
+            <p><strong>Score:</strong> ${result.score ?? "N/A"}</p>
+            <p><strong>Feedback:</strong> ${result.message ?? "No feedback."}</p>
+          `;
+        } catch (e) {
+          console.error(e);
+          resultBox.textContent = `Error checking font harmony: ${e.message}`;
+        }
+      });
+
+      // Fetch font recommendations from sandbox or fallback
+      let recommendedPairs = [];
+      try {
+        if (sandboxProxy.getFontRecommendations) {
+          const recoResult = await sandboxProxy.getFontRecommendations();
+          recommendedPairs = recoResult.recommendedPairs || [];
+        }
+      } catch {
+        recommendedPairs = [];
+      }
+
+      // Provide fallback pairs if none available
+      if (!recommendedPairs.length) {
+        recommendedPairs = [
+          { from: "Roboto", to: "Open Sans" },
+          { from: "Lobster", to: "Helvetica" },
+          { from: "Arial", to: "Georgia" },
+        ];
+      }
+
+      // Populate the dropdown
+      recommendedPairs.forEach((pair) => {
+        const option = document.createElement("option");
+        option.value = `${pair.from}|${pair.to}`;
+        option.textContent = `${pair.from} + ${pair.to}`;
+        fontSelect.appendChild(option);
+      });
+
+      // Handle font pair selection from dropdown
+      fontSelect.addEventListener("change", () => {
+        const value = fontSelect.value;
+        if (!value) {
+          resultBox.textContent =
+            "Fonts Detected:\n\nScore: N/A\n\nFeedback: No font pair selected.";
+          return;
+        }
+
+        const [font1, font2] = value.split("|");
+        const score = scoreFonts(font1, font2);
+        const message = getScoreMessage(score);
+
+        resultBox.innerHTML = `
+          <p><strong>Recommended Fonts:</strong> ${font1}, ${font2}</p>
+          <p><strong>Score:</strong> ${score}</p>
+          <p><strong>Feedback:</strong> ${message}</p>
+        `;
+      });
+    });
+  </script>
+</body>
+</html>

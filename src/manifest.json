@@ -1,0 +1,22 @@
+{
+    "testId": "d4b63a4d-de8a-468a-8a7e-977cd497b464",
+    "name": "My Amazing Addon",
+    "version": "1.0.0",
+    "manifestVersion": 2,
+    "requirements": {
+        "apps": [
+            {
+                "name": "Express",
+                "apiVersion": 1
+            }
+        ]
+    },
+    "entryPoints": [
+        {
+            "type": "panel",
+            "id": "panel1",
+            "main": "index.html",
+            "documentSandbox": "sandbox/code.js"
+        }
+    ]
+}
