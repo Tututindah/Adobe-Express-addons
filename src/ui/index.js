@@ -10,9 +10,9 @@ addOnUISdk.ready.then(async () => {
     const resultBox = document.getElementById("result");
     const fontSelect = document.getElementById("recommendedPairs");
 
-    // Enable Check Font Harmony button
     checkFontsButton.addEventListener("click", async () => {
         const result = await sandboxProxy.checkFontHarmony();
+        console.log(result);
         resultBox.innerHTML = `
             <p><strong>Fonts Detected:</strong> ${result.fonts.join(", ")}</p>
             <p><strong>Score:</strong> ${result.score ?? "N/A"}</p>
@@ -22,7 +22,6 @@ addOnUISdk.ready.then(async () => {
 
     checkFontsButton.disabled = false;
 
-    // Get font recommendations from sandbox
     const recoResult = await sandboxProxy.getFontRecommendations();
     const recommendedPairs = recoResult.recommendedPairs || [];
 
@@ -33,7 +32,6 @@ addOnUISdk.ready.then(async () => {
         fontSelect.appendChild(option);
     });
 
-    // Handle font pair selection from dropdown
     fontSelect.addEventListener("change", () => {
         const value = fontSelect.value;
         if (!value) return;
@@ -49,7 +47,6 @@ addOnUISdk.ready.then(async () => {
         `;
     });
 
-    // Helper scoring logic (same as in sandbox)
     function scoreFonts(font1, font2) {
         if (font1 === font2) return 95;
         const incompatible = [["Comic Sans", "Roboto"], ["Lobster", "Helvetica"]];
