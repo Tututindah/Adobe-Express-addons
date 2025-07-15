@@ -1,0 +1,187 @@
+import addOnSandboxSdk from "add-on-sdk-document-sandbox";
+import { editor } from "express-document-sdk";
+
+const { runtime } = addOnSandboxSdk.instance;
+const fetch = globalThis.fetch;
+
+
+const OPENAI_API_KEY = "";
+const ADOBE_FONTS_API_KEY = "";
+
+
+function extractFontsFromNode(node, fontsSet) {
+  if (node.fullContent && node.fullContent.characterStyleRanges) {
+    for (const range of node.fullContent.characterStyleRanges) {
+      const font = range.font?.postscriptName;
+      if (font) fontsSet.add(font);
+      console.log(font);
+    }
+  }
+}
+
+async function start() {
+  const sandboxApi = {
+    checkFontHarmony: async () => {
+      try {
+        const root = editor.documentRoot;
+        const fontsSet = new Set();
+
+        for (const page of root.pages) {
+          for (const artboard of page.artboards) {
+            for (const node of artboard.allChildren) {
+              extractFontsFromNode(node, fontsSet);
+              if (node.allChildren) {
+                for (const child of node.allChildren) {
+                  extractFontsFromNode(child, fontsSet);
+                }
+              }
+            }
+          }
+        }
+
+        const fontList = [...fontsSet];
+
+        if (fontList.length === 0) {
+          return {
+            message: "No text elements with fonts detected in the document.",
+            fonts: [],
+            harmonyScore: 0,
+            harmonyExplanation: "No fonts to evaluate.",
+            recommendations: []
+          };
+        }
+
+        const adobeResponse = await fetch("https://typekit.com/api/v1/json/libraries/full", {
+          headers: { Authorization: `Bearer ${ADOBE_FONTS_API_KEY}` }
+        });
+
+        if (!adobeResponse.ok) {
+          throw new Error(`Adobe Fonts API error: ${adobeResponse.statusText}`);
+        }
+
+        const adobeFonts = await adobeResponse.json();
+        const availableFonts = adobeFonts.library.families.map(f => f.name);
+
+        const recommendations = [];
+
+        for (const font of fontList) {
+          const prompt = `
+            Anda adalah AI desain grafis yang mengevaluasi harmoni font berdasarkan prinsip desain (kontras, keseimbangan, legibilitas).
+            Untuk font "${font}" dalam konteks desain umum, sarankan tiga font dari Adobe Fonts yang akan berpasangan dengan baik.
+            Berikan skor harmoni (0-100) untuk setiap pasangan dan penjelasan singkat.
+            Kembalikan respon dalam format JSON:
+            {
+              "font": "${font}",
+              "recommendations": [
+                { "font": string, "score": number, "explanation": string },
+                { "font": string, "score": number, "explanation": string },
+                { "font": string, "score": number, "explanation": string }
+              ]
+            }
+          `;
+
+          const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+              model: "gpt-4",
+              messages: [{ role: "user", content: prompt }],
+              max_tokens: 500
+            })
+          });
+
+          if (!openAIResponse.ok)
+            throw new Error(`OpenAI API error: ${openAIResponse.statusText}`);
+
+          const openAIData = await openAIResponse.json();
+
+          let result;
+          try {
+            result = JSON.parse(openAIData.choices[0].message.content);
+          } catch (e) {
+            throw new Error("Invalid JSON response from OpenAI.");
+          }
+
+          const validRecommendations = result.recommendations.filter(rec =>
+            availableFonts.includes(rec.font)
+          );
+
+          recommendations.push({
+            font,
+            recommendations: validRecommendations.length > 0
+              ? validRecommendations
+              : [
+                  { font: "Open Sans", score: 75, explanation: "Good pairing, visually consistent." },
+                  { font: "Lato", score: 70, explanation: "Acceptable, offers decent contrast." },
+                  { font: "Georgia", score: 65, explanation: "Classic serif for balance." }
+                ]
+          });
+        }
+
+        let harmonyScore = 100;
+        let harmonyExplanation = "Single font detected; harmony not applicable.";
+
+        if (fontList.length > 1) {
+          const harmonyPrompt = `
+            Anda adalah AI desain grafis yang mengevaluasi harmoni font.
+            Untuk kombinasi font berikut: ${fontList.join(", ")},
+            berikan skor harmoni (0-100) berdasarkan prinsip desain (kontras, keseimbangan, legibilitas).
+            Berikan penjelasan singkat tentang bagaimana font-font ini bekerja bersama.
+            Kembalikan respon dalam format JSON:
+            {
+              "harmonyScore": number,
+              "harmonyExplanation": string
+            }
+          `;
+
+          const harmonyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+              model: "gpt-4",
+              messages: [{ role: "user", content: harmonyPrompt }],
+              max_tokens: 200
+            })
+          });
+
+          if (!harmonyResponse.ok)
+            throw new Error(`OpenAI API error for harmony evaluation: ${harmonyResponse.statusText}`);
+
+          const harmonyData = await harmonyResponse.json();
+          const harmonyResult = JSON.parse(harmonyData.choices[0].message.content);
+
+          harmonyScore = harmonyResult.harmonyScore || 50;
+          harmonyExplanation = harmonyResult.harmonyExplanation || "Default harmony evaluation.";
+        }
+
+        return {
+          message: `Detected ${fontList.length} font(s) in the document.`,
+          fonts: fontList,
+          harmonyScore,
+          harmonyExplanation,
+          recommendations
+        };
+
+      } catch (error) {
+        console.log("Error in checkFontHarmony:");
+        return {
+          message: `Error: ${error.message}`,
+          fonts: [],
+          harmonyScore: 0,
+          harmonyExplanation: "No fonts to evaluate.",
+          recommendations: []
+        };
+      }
+    }
+  };
+
+  runtime.exposeApi(sandboxApi);
+}
+
+start();

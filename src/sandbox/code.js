@@ -3,101 +3,97 @@ import { editor } from "express-document-sdk";
 
 const { runtime } = addOnSandboxSdk.instance;
 
-function start() {
-    const sandboxApi = {
-        checkFontHarmony: async () => {
-        const selectedItems = editor?.selection?.items;
-        const fontNames = new Set();
+function extractFontsAndColors(root) {
+  const fonts = new Set();
+  const colors = new Set();
 
-        if (!selectedItems || selectedItems.length === 0) {
-            return {
-                score: null,
-                message: "No text selected. Please select at least one text element.",
-                fonts: []
-            };
-        }
-
-        for (const item of selectedItems) {
-            if (item.text) {
-                const fontName = item.textStyle?.font?.name;
-                if (fontName) fontNames.add(fontName);
-            }
-        }
-
-        const fonts = Array.from(fontNames);
-
-        if (fonts.length < 2) {
-            return {
-                score: null,
-                message: "Select at least two different fonts.",
-                fonts
-            };
-        }
-
-        const score = scoreFonts(fonts[0], fonts[1]);
-
-        return {
-            score,
-            message: getScoreMessage(score),
-            fonts
-        };
-        },
-
-
-        getFontRecommendations: async () => {
-            const selectedItems = editor?.selection?.items;
-            const fontNames = new Set();
-
-            if (!selectedItems || selectedItems.length === 0) {
-                return { recommendedPairs: [] };
-            }
-
-            for (const item of selectedItems) {
-                if (item.text) {
-                    const fontName = item.textStyle?.font?.name;
-                    if (fontName) fontNames.add(fontName);
-                }
-            }
-
-            const fonts = Array.from(fontNames);
-            const recommendedPairs = [];
-
-            const fontPairMap = {
-                "Roboto": ["Open Sans", "Lato"],
-                "Lobster": ["Roboto Slab"],
-                "Playfair Display": ["Lato", "Montserrat"],
-                "Montserrat": ["Merriweather", "Open Sans"],
-                "Comic Sans": ["Arial", "Lato"]
-            };
-
-            for (const font of fonts) {
-                if (fontPairMap[font]) {
-                    fontPairMap[font].forEach(reco => {
-                        recommendedPairs.push({ from: font, to: reco });
-                    });
-                }
-            }
-
-            return { recommendedPairs };
-        }
-
-    };
-
-    function scoreFonts(font1, font2) {
-        if (font1 === font2) return 95;
-        const incompatible = [["Comic Sans", "Roboto"], ["Lobster", "Helvetica"]];
-        if (incompatible.some(pair => pair.includes(font1) && pair.includes(font2))) return 40;
-        return 75;
+  function traverse(node) {
+    if (node.fullContent?.characterStyleRanges) {
+      for (const range of node.fullContent.characterStyleRanges) {
+        const font = range.font?.postscriptName;
+        if (font) fonts.add(font);
+      }
     }
 
-    function getScoreMessage(score) {
-        if (score >= 90) return "Excellent font pairing!";
-        if (score >= 70) return "Good pairing, visually consistent.";
-        if (score >= 50) return "Acceptable but could be better.";
-        return "Fonts may clash. Consider alternatives.";
-    }
+    const fill = node.fill || node.background || node.color;
+    if (fill?.value) colors.add(fill.value);
 
-    runtime.exposeApi(sandboxApi);
+    if (node.allChildren) {
+      for (const child of node.allChildren) traverse(child);
+    }
+  }
+
+  for (const page of root.pages) {
+    for (const artboard of page.artboards) {
+      for (const node of artboard.allChildren) traverse(node);
+    }
+  }
+
+  return { fonts: Array.from(fonts), colors: Array.from(colors) };
 }
 
-start();
+function getColorHarmonyScore(colors) {
+  if (colors.length < 2) {
+    return {
+      score: 100,
+      explanation: "Single color detected — naturally harmonious.",
+      recommendations: []
+    };
+  }
+
+  const score = colors.length > 5 ? 60 : 85;
+  const explanation = score > 80 ? "Colors show balance in contrast." : "Too many colors reduce harmony.";
+
+  const fallbackRecs = ["#FF6B6B", "#4ECDC4", "#FFE66D"].map(c => ({
+    color: c,
+    explanation: "Balanced and commonly harmonious palette."
+  }));
+
+  return {
+    score,
+    explanation,
+    recommendations: fallbackRecs
+  };
+}
+
+function getFontHarmonyScore(fonts) {
+  if (fonts.length < 2) return {
+    score: 100,
+    explanation: "Single font used — perfect harmony.",
+    recommendations: []
+  };
+
+  const score = fonts.length === 2 ? 85 : 65;
+  const explanation = score > 80 ? "Font contrast is stylish and balanced." : "Too many fonts can cause visual noise.";
+
+  const dummyRecs = fonts.map(font => ({
+    font,
+    recommendations: [
+      { font: "Open Sans", score: 80, explanation: "Neutral and readable complement." },
+      { font: "Lato", score: 78, explanation: "Soft sans-serif for contrast." }
+    ]
+  }));
+
+  return { score, explanation, recommendations: dummyRecs };
+}
+
+runtime.exposeApi({
+  checkFontAndColorHarmony: async () => {
+    const root = editor.documentRoot;
+    const { fonts, colors } = extractFontsAndColors(root);
+
+    const fontResult = getFontHarmonyScore(fonts);
+    const colorResult = getColorHarmonyScore(colors);
+
+    return {
+      fonts,
+      colors,
+      fontScore: fontResult.score,
+      fontExplanation: fontResult.explanation,
+      colorScore: colorResult.score,
+      colorExplanation: colorResult.explanation,
+      fontRecs: fontResult.recommendations,
+      colorRecs: colorResult.recommendations
+    };
+  }
+});
