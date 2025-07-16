@@ -44,47 +44,49 @@ addOnUISdk.ready.then(async () => {
 
   function displayResults(result) {
     const { fonts, colors, fontScore, fontExplanation, colorScore, colorExplanation, fontRecs, colorRecs } = result;
-
+  
+    function progressBar(score) {
+      return `
+        <div class="progress-container">
+          <div class="progress-bar" style="width: ${score}%; background: ${getBarColor(score)};"></div>
+          <div class="score-label">${score}/100</div>
+        </div>
+      `;
+    }
+  
     const fontBar = `
       <div class="recommendation-card">
         <div class="font-title">Font Harmony</div>
-        <div style="display: flex; align-items: flex-end; height: 120px;">
-          <div class="score-bar-vertical-container">
-            <div class="score-bar-vertical" style="height: ${fontScore}%; background: ${getBarColor(fontScore)};"></div>
-          </div>
-          <div class="score-label">${fontScore}/100</div>
-        </div>
+        ${progressBar(fontScore)}
         <div style="font-size: 13px; margin-top: 8px;">${fontExplanation}</div>
       </div>
     `;
-
+  
     const colorBar = `
       <div class="recommendation-card">
         <div class="font-title">Color Harmony</div>
-        <div style="display: flex; align-items: flex-end; height: 120px;">
-          <div class="score-bar-vertical-container">
-            <div class="score-bar-vertical" style="height: ${colorScore}%; background: ${getBarColor(colorScore)};"></div>
-          </div>
-          <div class="score-label">${colorScore}/100</div>
-        </div>
+        ${progressBar(colorScore)}
         <div style="font-size: 13px; margin-top: 8px;">${colorExplanation}</div>
       </div>
     `;
-
+  
     const fontRecsHtml = fontRecs.map(r => `
       <div class="recommendation-card">
         <div class="font-title">Font Recommendation for ${r.font}</div>
         ${r.recommendations.map(rec => `
           <div class="recommendation-item">
-            <div class="score-bar-vertical-container">
-              <div class="score-bar-vertical" style="height: ${rec.score}%; background: ${getBarColor(rec.score)};"></div>
+            <div style="flex: 1;">
+              <div class="progress-container">
+                <div class="progress-bar" style="width: ${rec.score}%; background: ${getBarColor(rec.score)};"></div>
+                <div class="score-label">${rec.score}/100</div>
+              </div>
+              <div><strong>${rec.font}</strong> – ${rec.explanation}</div>
             </div>
-            <div><strong>${rec.font}</strong> (${rec.score}/100) – ${rec.explanation}</div>
           </div>
         `).join("")}
       </div>
     `).join("");
-
+  
     const colorRecsHtml = `
       <div class="recommendation-card">
         <div class="font-title">Color Recommendations</div>
@@ -96,7 +98,7 @@ addOnUISdk.ready.then(async () => {
         `).join("")}
       </div>
     `;
-
+  
     resultBox.innerHTML = `
       <div class="recommendation-card">
         <p><strong>Detected Fonts:</strong> ${fonts.join(", ")}</p>
@@ -108,4 +110,5 @@ addOnUISdk.ready.then(async () => {
       ${colorRecsHtml}
     `;
   }
+  
 });
