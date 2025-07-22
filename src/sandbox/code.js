@@ -32,68 +32,26 @@ function extractFontsAndColors(root) {
   return { fonts: Array.from(fonts), colors: Array.from(colors) };
 }
 
-function getColorHarmonyScore(colors) {
-  if (colors.length < 2) {
-    return {
-      score: 100,
-      explanation: "Single color detected — naturally harmonious.",
-      recommendations: []
-    };
-  }
-
-  const score = colors.length > 5 ? 60 : 85;
-  const explanation = score > 80 ? "Colors show balance in contrast." : "Too many colors reduce harmony.";
-
-  const fallbackRecs = ["#FF6B6B", "#4ECDC4", "#FFE66D"].map(c => ({
-    color: c,
-    explanation: "Balanced and commonly harmonious palette."
-  }));
-
-  return {
-    score,
-    explanation,
-    recommendations: fallbackRecs
-  };
-}
-
-function getFontHarmonyScore(fonts) {
-  if (fonts.length < 2) return {
-    score: 100,
-    explanation: "Single font used — perfect harmony.",
-    recommendations: []
-  };
-
-  const score = fonts.length === 2 ? 85 : 65;
-  const explanation = score > 80 ? "Font contrast is stylish and balanced." : "Too many fonts can cause visual noise.";
-
-  const dummyRecs = fonts.map(font => ({
-    font,
-    recommendations: [
-      { font: "Open Sans", score: 80, explanation: "Neutral and readable complement." },
-      { font: "Lato", score: 78, explanation: "Soft sans-serif for contrast." }
-    ]
-  }));
-
-  return { score, explanation, recommendations: dummyRecs };
-}
-
 runtime.exposeApi({
-  checkFontAndColorHarmony: async () => {
+  getDesignData: async () => {
     const root = editor.documentRoot;
-    const { fonts, colors } = extractFontsAndColors(root);
-
-    const fontResult = getFontHarmonyScore(fonts);
-    const colorResult = getColorHarmonyScore(colors);
-
-    return {
-      fonts,
-      colors,
-      fontScore: fontResult.score,
-      fontExplanation: fontResult.explanation,
-      colorScore: colorResult.score,
-      colorExplanation: colorResult.explanation,
-      fontRecs: fontResult.recommendations,
-      colorRecs: colorResult.recommendations
-    };
+    return extractFontsAndColors(root);
+  },
+  replaceFont: async (newFont) => {
+    const root = editor.documentRoot;
+    let changed = false;
+    function traverse(node) {
+      if (node.fullContent?.characterStyleRanges) {
+        for (const range of node.fullContent.characterStyleRanges) {
+          if (range.font) {
+            range.font.postscriptName = newFont;
+            changed = true;
+          }
+        }
+      }
+      if (node.allChildren) node.allChildren.forEach(traverse);
+    }
+    root.pages.forEach(p => p.artboards.forEach(ab => ab.allChildren.forEach(traverse)));
+    return { changed };
   }
 });

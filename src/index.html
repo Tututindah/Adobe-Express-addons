@@ -2,68 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Font & Color Harmony Checker</title>
+  <title>Font & Color AI Checker</title>
   <style>
-    body { font-family: sans-serif; margin: 24px; }
+    body { font-family: sans-serif; padding: 20px; }
     button {
-      background-color: #5258e4;
-      color: white; padding: 8px 16px;
-      border-radius: 12px;
+      background: #4e5bf9;
+      color: white; padding: 10px 16px;
       border: none;
-      margin-bottom: 16px;
+      border-radius: 10px;
       cursor: pointer;
+      margin-bottom: 12px;
     }
-    button:disabled { background: #aaa; cursor: not-allowed; }
-
+    button:disabled { background: #ccc; cursor: not-allowed; }
     .recommendation-card {
       background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
       padding: 12px;
-      border-radius: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
-
-    .progress-container {
-  width: 100%;
-  background: #eee;
-  height: 16px;
-  border-radius: 8px;
-  position: relative;
-  margin: 8px 0;
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  border-radius: 8px 0 0 8px;
-}
-
-.score-label {
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-    .score-bar-vertical-container {
-      width: 30px;
-      height: 100px;
-      background: #eee;
-      border-radius: 6px;
-      position: relative;
-      margin-right: 12px;
-    }
-    .score-bar-vertical {
-      position: absolute;
-      bottom: 0;
-      width: 100%;
-      border-radius: 6px;
-    }
-    .score-label { font-size: 12px; margin-left: 8px; }
-    .recommendation-item { display: flex; align-items: center; margin-bottom: 12px; }
-    .font-title { font-weight: bold; margin-bottom: 8px; }
   </style>
 </head>
 <body>
-  <button id="checkDesign" disabled>Check Font & Color Harmony</button>
+  <button id="checkDesign" disabled>Check Font & Color Harmony (AI)</button>
+  <button id="autofixFont" style="display:none;">🔧 Auto Fix Font</button>
   <div id="result">Loading...</div>
   <script type="module" src="ui/index.js"></script>
 </body>

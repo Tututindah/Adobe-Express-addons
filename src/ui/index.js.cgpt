@@ -1,0 +1,73 @@
+import addOnUISdk from "https://new.express.adobe.com/static/add-on-sdk/sdk.js";
+
+const OPENAI_API_KEY = "sk-proj-M1002vB--gEP6IGxx8rYJBxN0pwerQN_EyPVa_K5shR0oj88XsYGs3sTEkknSRh7uoA"; 
+
+addOnUISdk.ready.then(async () => {
+  const { runtime } = addOnUISdk.instance;
+  const sandboxProxy = await runtime.apiProxy("documentSandbox");
+
+  const checkBtn = document.getElementById("checkDesign");
+  const resultBox = document.getElementById("result");
+  const autofixBtn = document.getElementById("autofixFont");
+
+  if (!sandboxProxy.getDesignData) {
+    resultBox.textContent = "API not supported.";
+    return;
+  }
+
+  checkBtn.disabled = false;
+
+  checkBtn.addEventListener("click", async () => {
+    resultBox.innerHTML = "Analyzing design...";
+    try {
+      const design = await sandboxProxy.getDesignData();
+      const suggestion = await getAiRecommendations(design.fonts, design.colors);
+      displayResults(design, suggestion);
+    } catch (e) {
+      resultBox.textContent = `Error: ${e.message}`;
+    }
+  });
+
+  async function getAiRecommendations(fonts, colors) {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [{
+          role: "user",
+          content: `Please analyze the following fonts used in a design: ${fonts.join(", ")}. 
+          Evaluate if the font combination is harmonious and give a harmony rating from 0 to 100. 
+          Then, suggest one font replacement if needed to improve visual harmony.
+          Respond in JSON format like: {"harmonyScore": number, "comment": "...", "suggestedFont": "..."}.`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+    return data.choices?.[0]?.message?.content || "No suggestion returned.";
+  }
+
+  function displayResults(design, aiText) {
+    const { fonts, colors } = design;
+
+    resultBox.innerHTML = `
+      <div class="recommendation-card">
+        <p><strong>Fonts:</strong> ${fonts.join(", ")}</p>
+        <p><strong>Colors:</strong> ${colors.join(", ")}</p>
+      </div>
+      <div class="recommendation-card">
+        <p><strong>AI Suggestion:</strong><br>${aiText.replace(/\n/g, "<br>")}</p>
+      </div>
+    `;
+    autofixBtn.style.display = "block";
+  }
+
+  autofixBtn.addEventListener("click", () => {
+    alert("Autofix functionality triggered! (implement logic to update fonts here)");
+  });
+});
