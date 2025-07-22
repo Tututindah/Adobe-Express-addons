@@ -83,5 +83,5 @@ CCA Adobe add on SDK
 ## Links
 
 * [GitHub Repository](https://github.com/Tututindah/Adobe-Express-addons)
-* [Documentation](https://app.gitbook.com/o/bDKCknw96bQBBCGWcP3r/s/iA9lC8vgzEC0njLvzryR/)
+* [Documentation](https://harmony-font.gitbook.io/harmony-font/)
 * [video](https://www.youtube.com/watch?si=P8lhWIWuvENL2Zyz&v=JNjNFi1i-Zs&feature=youtu.be)
