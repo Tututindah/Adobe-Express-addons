@@ -86,6 +86,6 @@ For questions or support, please contact:
 
 ## Links
 
-* [GitHub Repository](https://github.com/yourusername/your-repo)
+* [GitHub Repository](https://github.com/Tututindah/Adobe-Express-addons)
 * [Documentation](https://app.gitbook.com/o/bDKCknw96bQBBCGWcP3r/s/iA9lC8vgzEC0njLvzryR/)
 * [video](https://www.youtube.com/watch?si=P8lhWIWuvENL2Zyz&v=JNjNFi1i-Zs&feature=youtu.be)
