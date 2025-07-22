@@ -77,12 +77,8 @@ This add-on is open source and free to use and modify.
 
 ---
 
-## Contact
-
-For questions or support, please contact:
-[mee.dii2730@gmail.com](mailto:mee.dii2730@gmail.com)
-
----
+## built with 
+CCA Adobe add on SDK
 
 ## Links
 
